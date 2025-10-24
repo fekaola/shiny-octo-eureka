@@ -443,6 +443,7 @@ local function createShotMurdererButton()
     
     shotMurdererButton.Parent = ScreenGui
 end
+
 local currentY = 50
 local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY)
 currentY = currentY + 35
