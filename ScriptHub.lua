@@ -18,21 +18,9 @@ local startTime = os.time()
 
 local menuOpen = true
 
-local espEnabled = false
-local murdererEspEnabled = false
-local sheriffEspEnabled = false
-local esps = {}
-
-local aimlockEnabled = false
-local autoShotEnabled = false
-local targetPlayer = nil
-
-local shotMurdererButton = nil
-
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XHub"
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -158,7 +146,7 @@ local AutofarmTab = CreateTab("AUTOFARM", 130)
 AutofarmTab.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 AutofarmTab.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local function CreateToggle(name, defaultValue, yPosition, parentFrame)
+local function CreateToggle(name, defaultValue, yPosition)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Name = name .. "Toggle"
     ToggleFrame.Size = UDim2.new(1, -20, 0, 30)
@@ -230,44 +218,18 @@ local function CreateToggle(name, defaultValue, yPosition, parentFrame)
             antiAFKEnabled = newValue
         elseif name == "Auto Reset" then
             autoResetEnabled = newValue
-        elseif name == "ESP" then
-            espEnabled = newValue
-            reloadESP()
-        elseif name == "Murderer ESP" then
-            murdererEspEnabled = newValue
-            reloadESP()
-        elseif name == "Sheriff ESP" then
-            sheriffEspEnabled = newValue
-            reloadESP()
-        elseif name == "Aimlock" then
-            aimlockEnabled = newValue
-            if newValue then
-                enableAimlock()
-            else
-                disableAimlock()
-            end
-        elseif name == "Auto Shot" then
-            autoShotEnabled = newValue
-            if newValue then
-                createShotMurdererButton()
-            else
-                if shotMurdererButton then
-                    shotMurdererButton:Destroy()
-                    shotMurdererButton = nil
-                end
-            end
         end
     end)
     
     ToggleLabel.Parent = ToggleFrame
     ToggleButton.Parent = ToggleFrame
     ToggleIndicator.Parent = ToggleButton
-    ToggleFrame.Parent = parentFrame
+    ToggleFrame.Parent = ContentFrame
     
     return ToggleFrame, defaultValue
 end
 
-local function CreateDisplay(name, value, yPosition, parentFrame)
+local function CreateDisplay(name, value, yPosition)
     local DisplayFrame = Instance.new("Frame")
     DisplayFrame.Name = name .. "Display"
     DisplayFrame.Size = UDim2.new(1, -20, 0, 25)
@@ -298,180 +260,28 @@ local function CreateDisplay(name, value, yPosition, parentFrame)
     
     DisplayLabel.Parent = DisplayFrame
     DisplayValue.Parent = DisplayFrame
-    DisplayFrame.Parent = parentFrame
+    DisplayFrame.Parent = ContentFrame
     
     return DisplayFrame, DisplayValue
 end
 
-local function getMurderer()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character then
-            local backpack = player:FindFirstChild("Backpack")
-            local character = player.Character
-            if backpack and (backpack:FindFirstChild("Knife") or character:FindFirstChild("Knife")) then
-                return player
-            end
-        end
-    end
-    return nil
-end
-
-local function getSheriff()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character then
-            local backpack = player:FindFirstChild("Backpack")
-            local character = player.Character
-            if backpack and (backpack:FindFirstChild("Gun") or character:FindFirstChild("Gun")) then
-                return player
-            end
-        end
-    end
-    return nil
-end
-
-local function reloadESP()
-    for _, highlight in pairs(workspace:GetChildren()) do
-        if highlight:IsA("Highlight") then
-            if highlight.Name == "PlayerHighlight" and not espEnabled then
-                highlight:Destroy()
-            elseif highlight.Name == "MurdererHighlight" and not murdererEspEnabled then
-                highlight:Destroy()
-            elseif highlight.Name == "SheriffHighlight" and not sheriffEspEnabled then
-                highlight:Destroy()
-            end
-        end
-    end
-
-    if espEnabled then
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local character = player.Character
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart and not character:FindFirstChild("PlayerHighlight") then
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "PlayerHighlight"
-                    highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                    highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
-                    highlight.Adornee = character
-                    highlight.Parent = character
-                end
-            end
-        end
-    end
-
-    if murdererEspEnabled then
-        local murderer = getMurderer()
-        if murderer and murderer.Character and not murderer.Character:FindFirstChild("MurdererHighlight") then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "MurdererHighlight"
-            highlight.FillColor = Color3.fromRGB(255, 0, 0)
-            highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-            highlight.Adornee = murderer.Character
-            highlight.Parent = murderer.Character
-        end
-    end
-
-    if sheriffEspEnabled then
-        local sheriff = getSheriff()
-        if sheriff and sheriff.Character and not sheriff.Character:FindFirstChild("SheriffHighlight") then
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "SheriffHighlight"
-            highlight.FillColor = Color3.fromRGB(0, 0, 255)
-            highlight.OutlineColor = Color3.fromRGB(0, 0, 255)
-            highlight.Adornee = sheriff.Character
-            highlight.Parent = sheriff.Character
-        end
-    end
-end
-
-local aimlockConnection
-local function enableAimlock()
-    if aimlockEnabled then return end
-    
-    aimlockConnection = RunService.RenderStepped:Connect(function()
-        if not aimlockEnabled then return end
-        
-        local murderer = getMurderer()
-        if murderer and murderer.Character then
-            local humanoidRootPart = murderer.Character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                local camera = workspace.CurrentCamera
-                camera.CFrame = CFrame.new(camera.CFrame.Position, humanoidRootPart.Position)
-            end
-        end
-    end)
-    aimlockEnabled = true
-end
-
-local function disableAimlock()
-    aimlockEnabled = false
-    if aimlockConnection then
-        aimlockConnection:Disconnect()
-        aimlockConnection = nil
-    end
-end
-
-local function createShotMurdererButton()
-    if shotMurdererButton then
-        shotMurdererButton:Destroy()
-    end
-    
-    shotMurdererButton = Instance.new("TextButton")
-    shotMurdererButton.Name = "ShotMurdererButton"
-    shotMurdererButton.Size = UDim2.new(0, 120, 0, 40)
-    shotMurdererButton.Position = UDim2.new(0, 20, 0, 20)
-    shotMurdererButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    shotMurdererButton.BorderSizePixel = 0
-    shotMurdererButton.Text = "SHOT MURDERER"
-    shotMurdererButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    shotMurdererButton.TextSize = 12
-    shotMurdererButton.Font = Enum.Font.GothamBold
-    shotMurdererButton.AutoButtonColor = false
-    shotMurdererButton.Active = true
-    shotMurdererButton.Draggable = true
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = shotMurdererButton
-    
-    shotMurdererButton.MouseButton1Click:Connect(function()
-        local sheriff = getSheriff()
-        local murderer = getMurderer()
-        
-        if sheriff == LocalPlayer and murderer and murderer.Character then
-            local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Character:FindFirstChild("Gun")
-            if gun then
-                local shootEvent = gun:FindFirstChild("ShootEvent")
-                if shootEvent then
-                    local murdererRoot = murderer.Character:FindFirstChild("HumanoidRootPart")
-                    if murdererRoot then
-                        shootEvent:FireServer(murdererRoot.Position)
-                    end
-                end
-            end
-        end
-    end)
-    
-    shotMurdererButton.Parent = ScreenGui
-end
-
 local currentY = 50
-local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY, ContentFrame)
+local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY)
 currentY = currentY + 35
 
-local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY, ContentFrame)
+local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY)
 currentY = currentY + 35
 
-local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY, ContentFrame)
+local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY)
 currentY = currentY + 35
 
-local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY, ContentFrame)
+local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY)
 currentY = currentY + 30
 
-local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY, ContentFrame)
+local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY)
 currentY = currentY + 30
 
-local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY, ContentFrame)
+local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY)
 currentY = currentY + 30
 
 local ResetButton = Instance.new("TextButton")
@@ -511,14 +321,18 @@ ESPContent.Position = UDim2.new(0, 0, 0, 0)
 ESPContent.BackgroundTransparency = 1
 ESPContent.Visible = false
 
-local espCurrentY = 50
-local ESPToggle, ESPState = CreateToggle("ESP", false, espCurrentY, ESPContent)
-espCurrentY = espCurrentY + 35
-
-local MurdererESPToggle, MurdererESPState = CreateToggle("Murderer ESP", false, espCurrentY, ESPContent)
-espCurrentY = espCurrentY + 35
-
-local SheriffESPToggle, SheriffESPState = CreateToggle("Sheriff ESP", false, espCurrentY, ESPContent)
+local ESPLabel = Instance.new("TextLabel")
+ESPLabel.Name = "ESPLabel"
+ESPLabel.Size = UDim2.new(1, 0, 0, 200)
+ESPLabel.Position = UDim2.new(0, 0, 0.2, 0)
+ESPLabel.BackgroundTransparency = 1
+ESPLabel.Text = "ESP Features\nComing Soon..."
+ESPLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+ESPLabel.TextSize = 14
+ESPLabel.Font = Enum.Font.Gotham
+ESPLabel.TextYAlignment = Enum.TextYAlignment.Center
+ESPLabel.TextXAlignment = Enum.TextXAlignment.Center
+ESPLabel.Parent = ESPContent
 
 local AimbotContent = Instance.new("Frame")
 AimbotContent.Name = "AimbotContent"
@@ -527,11 +341,18 @@ AimbotContent.Position = UDim2.new(0, 0, 0, 0)
 AimbotContent.BackgroundTransparency = 1
 AimbotContent.Visible = false
 
-local aimbotCurrentY = 50
-local AimbotToggle, AimbotState = CreateToggle("Aimlock", false, aimbotCurrentY, AimbotContent)
-aimbotCurrentY = aimbotCurrentY + 35
-
-local AutoShotToggle, AutoShotState = CreateToggle("Auto Shot", false, aimbotCurrentY, AimbotContent)
+local AimbotLabel = Instance.new("TextLabel")
+AimbotLabel.Name = "AimbotLabel"
+AimbotLabel.Size = UDim2.new(1, 0, 0, 200)
+AimbotLabel.Position = UDim2.new(0, 0, 0.2, 0)
+AimbotLabel.BackgroundTransparency = 1
+AimbotLabel.Text = "Aimbot Features\nComing Soon..."
+AimbotLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+AimbotLabel.TextSize = 14
+AimbotLabel.Font = Enum.Font.Gotham
+AimbotLabel.TextYAlignment = Enum.TextYAlignment.Center
+AimbotLabel.TextXAlignment = Enum.TextXAlignment.Center
+AimbotLabel.Parent = AimbotContent
 
 local function SwitchTab(selectedTab)
     ESPTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -622,15 +443,12 @@ ResizeButton.Parent = MainFrame
 ToggleButton.Parent = MainFrame
 MainFrame.Parent = ScreenGui
 MiniToggleButton.Parent = ScreenGui
+ScreenGui.Parent = PlayerGui
 
 local function SetupAutoFarm()
-    local success, coinRemote = pcall(function()
-        return ReplicatedStorage.Remotes.Gameplay.CoinCollected
-    end)
-    
-    if not success then
-        return
-    end
+    local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
+    local RoundStart = ReplicatedStorage.Remotes.Gameplay.RoundStart
+    local RoundEnd = ReplicatedStorage.Remotes.Gameplay.RoundEndFade
 
     local farming = false
     local bag_full = false
@@ -645,7 +463,7 @@ local function SetupAutoFarm()
         return getCharacter():WaitForChild("HumanoidRootPart") 
     end
 
-    coinRemote.OnClientEvent:Connect(function(_, current, max)
+    CoinCollected.OnClientEvent:Connect(function(_, current, max)
         candyCount = current
         CandyValue.Text = tostring(candyCount)
         
@@ -662,14 +480,21 @@ local function SetupAutoFarm()
                 tween.Completed:Wait()
             end
             task.wait(0.5)
-            if LocalPlayer.Character then
-                LocalPlayer.Character.Humanoid.Health = 0
-            end
+            LocalPlayer.Character.Humanoid.Health = 0
             LocalPlayer.CharacterAdded:Wait()
             task.wait(1.5)
             resetting = false
             bag_full = false
         end
+    end)
+
+    RoundStart.OnClientEvent:Connect(function()
+        farming = true
+        start_position = getHRP().CFrame
+    end)
+
+    RoundEnd.OnClientEvent:Connect(function()
+        farming = false
     end)
 
     local function get_nearest_coin()
