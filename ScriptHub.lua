@@ -27,6 +27,7 @@ local menuOpen = true
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XHub"
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -236,23 +237,23 @@ local function CreateToggle(name, defaultValue, yPosition, parentFrame)
         elseif name == "ESP All" then
             espEnabled = newValue
             if newValue then
-                enablePlayerESP()
+                EnablePlayerESP()
             else
-                disablePlayerESP()
+                DisablePlayerESP()
             end
         elseif name == "ESP Murderer" then
             espMurdererEnabled = newValue
             if newValue then
-                enableMurdererESP()
+                EnableMurdererESP()
             else
-                disableMurdererESP()
+                DisableMurdererESP()
             end
         elseif name == "ESP Sheriff" then
             espSheriffEnabled = newValue
             if newValue then
-                enableSheriffESP()
+                EnableSheriffESP()
             else
-                disableSheriffESP()
+                DisableSheriffESP()
             end
         end
     end)
@@ -475,17 +476,19 @@ ScreenGui.Parent = PlayerGui
 local shotMurdererButton = nil
 
 local function CreateShotMurdererButton()
-    if shotMurdererButton then return end
+    if shotMurdererButton then
+        shotMurdererButton:Destroy()
+    end
     
     shotMurdererButton = Instance.new("TextButton")
     shotMurdererButton.Name = "ShotMurdererButton"
-    shotMurdererButton.Size = UDim2.new(0, 120, 0, 40)
-    shotMurdererButton.Position = UDim2.new(0.5, -60, 0.8, 0)
+    shotMurdererButton.Size = UDim2.new(0, 150, 0, 50)
+    shotMurdererButton.Position = UDim2.new(0.5, -75, 0.8, 0)
     shotMurdererButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     shotMurdererButton.BorderSizePixel = 0
     shotMurdererButton.Text = "SHOT MURDERER"
     shotMurdererButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    shotMurdererButton.TextSize = 12
+    shotMurdererButton.TextSize = 14
     shotMurdererButton.Font = Enum.Font.GothamBold
     shotMurdererButton.AutoButtonColor = false
     shotMurdererButton.ZIndex = 10
@@ -495,7 +498,7 @@ local function CreateShotMurdererButton()
     corner.Parent = shotMurdererButton
     
     shotMurdererButton.MouseButton1Click:Connect(function()
-        shootMurderer()
+        ShootMurderer()
     end)
     
     shotMurdererButton.Parent = ScreenGui
@@ -508,20 +511,23 @@ local function RemoveShotMurdererButton()
     end
 end
 
-local function shootMurderer()
-    local murderer = findMurderer()
+local function ShootMurderer()
+    local murderer = FindMurderer()
     if murderer and murderer.Character then
         local humanoid = murderer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
+            humanoid.Health = 0
             print("Shot murderer: " .. murderer.Name)
         end
+    else
+        print("No murderer found")
     end
 end
 
-local function findMurderer()
+local function FindMurderer()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            if checkIfMurderer(player) then
+            if CheckIfMurderer(player) then
                 return player
             end
         end
@@ -529,153 +535,183 @@ local function findMurderer()
     return nil
 end
 
-local autoGrabLoop = nil
-
-local function autoGrabGun()
+-- Auto Grab Gun Functions
+local function AutoGrabGun()
     local character = LocalPlayer.Character
     if not character then return end
     
     for _, obj in pairs(workspace:GetChildren()) do
-        if obj.Name == "Gun" or obj:FindFirstChild("Handle") then
+        if obj.Name:lower():find("gun") or (obj:FindFirstChild("Handle") and obj.Handle:IsA("BasePart")) then
             local distance = (character.HumanoidRootPart.Position - obj.Position).Magnitude
-            if distance < 10 then
-                fireclickdetector(obj.ClickDetector)
+            if distance < 15 then
+                local clickDetector = obj:FindFirstChildOfClass("ClickDetector")
+                if clickDetector then
+                    fireclickdetector(clickDetector)
+                end
             end
         end
     end
 end
 
+-- ESP Functions
 local highlights = {}
+local espConnections = {}
 
-local function enablePlayerESP()
-    local players = Players:GetPlayers()
+local function EnablePlayerESP()
+    DisableAllESP()
     
-    for _, player in ipairs(players) do
-        if player ~= LocalPlayer and player.Character then
-            local character = player.Character
-            
-            if not highlights[player] then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "PlayerHighlight"
-                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                highlight.Adornee = character
-                highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                highlight.OutlineColor = Color3.fromRGB(0, 200, 0)
-                highlight.Parent = workspace
-                
-                highlights[player] = highlight
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local function setupESP(character)
+                if character and not highlights[player] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = player.Name .. "_ESP"
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Adornee = character
+                    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                    highlight.OutlineColor = Color3.fromRGB(0, 200, 0)
+                    highlight.FillTransparency = 0.3
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = ScreenGui
+                    
+                    highlights[player] = highlight
+                end
             end
+            
+            if player.Character then
+                setupESP(player.Character)
+            end
+            
+            espConnections[player] = player.CharacterAdded:Connect(function(character)
+                task.wait(1)
+                setupESP(character)
+            end)
         end
     end
 end
 
-local function disablePlayerESP()
+local function EnableMurdererESP()
+    DisableAllESP()
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local function setupMurdererESP(character)
+                if character and CheckIfMurderer(player) and not highlights[player] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = player.Name .. "_MurdererESP"
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Adornee = character
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.OutlineColor = Color3.fromRGB(200, 0, 0)
+                    highlight.FillTransparency = 0.3
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = ScreenGui
+                    
+                    highlights[player] = highlight
+                end
+            end
+            
+            if player.Character then
+                setupMurdererESP(player.Character)
+            end
+            
+            espConnections[player] = player.CharacterAdded:Connect(function(character)
+                task.wait(1)
+                setupMurdererESP(character)
+            end)
+        end
+    end
+end
+
+local function EnableSheriffESP()
+    DisableAllESP()
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local function setupSheriffESP(character)
+                if character and CheckIfSheriff(player) and not highlights[player] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = player.Name .. "_SheriffESP"
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    highlight.Adornee = character
+                    highlight.FillColor = Color3.fromRGB(0, 0, 255)
+                    highlight.OutlineColor = Color3.fromRGB(0, 0, 200)
+                    highlight.FillTransparency = 0.3
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = ScreenGui
+                    
+                    highlights[player] = highlight
+                end
+            end
+            
+            if player.Character then
+                setupSheriffESP(player.Character)
+            end
+            
+            espConnections[player] = player.CharacterAdded:Connect(function(character)
+                task.wait(1)
+                setupSheriffESP(character)
+            end)
+        end
+    end
+end
+
+local function DisablePlayerESP()
     for player, highlight in pairs(highlights) do
         if highlight then
             highlight:Destroy()
         end
     end
     highlights = {}
-end
-
-local function enableMurdererESP()
-    local players = Players:GetPlayers()
     
-    for _, player in ipairs(players) do
-        if player.Character and checkIfMurderer(player) then
-            local character = player.Character
-            
-            if not highlights[player] then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "MurdererHighlight"
-                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                highlight.Adornee = character
-                highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                highlight.OutlineColor = Color3.fromRGB(200, 0, 0)
-                highlight.Parent = workspace
-                
-                highlights[player] = highlight
-            end
-        end
+    for player, connection in pairs(espConnections) do
+        connection:Disconnect()
     end
+    espConnections = {}
 end
 
-local function disableMurdererESP()
-    for player, highlight in pairs(highlights) do
-        if highlight and highlight.Name == "MurdererHighlight" then
-            highlight:Destroy()
-            highlights[player] = nil
-        end
-    end
+local function DisableMurdererESP()
+    DisablePlayerESP()
 end
 
-local function enableSheriffESP()
-    local players = Players:GetPlayers()
-    
-    for _, player in ipairs(players) do
-        if player.Character and checkIfSheriff(player) then
-            local character = player.Character
-            
-            if not highlights[player] then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "SheriffHighlight"
-                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                highlight.Adornee = character
-                highlight.FillColor = Color3.fromRGB(0, 0, 255)
-                highlight.OutlineColor = Color3.fromRGB(0, 0, 200)
-                highlight.Parent = workspace
-                
-                highlights[player] = highlight
-            end
-        end
-    end
+local function DisableSheriffESP()
+    DisablePlayerESP()
 end
 
-local function disableSheriffESP()
-    for player, highlight in pairs(highlights) do
-        if highlight and highlight.Name == "SheriffHighlight" then
-            highlight:Destroy()
-            highlights[player] = nil
-        end
-    end
+local function DisableAllESP()
+    DisablePlayerESP()
 end
 
-local function checkIfMurderer(player)
+-- Role Detection Functions
+local function CheckIfMurderer(player)
     if player.Character then
         for _, tool in ipairs(player.Character:GetChildren()) do
-            if tool:IsA("Tool") and (string.lower(tool.Name) == "knife" or string.lower(tool.Name) == "murderer") then
-                return true
+            if tool:IsA("Tool") then
+                local toolName = tool.Name:lower()
+                if toolName:find("knife") or toolName:find("murder") then
+                    return true
+                end
             end
         end
     end
     return false
 end
 
-local function checkIfSheriff(player)
+local function CheckIfSheriff(player)
     if player.Character then
         for _, tool in ipairs(player.Character:GetChildren()) do
-            if tool:IsA("Tool") and (string.lower(tool.Name) == "gun" or string.lower(tool.Name) == "sheriff") then
-                return true
+            if tool:IsA("Tool") then
+                local toolName = tool.Name:lower()
+                if toolName:find("gun") or toolName:find("sheriff") or toolName:find("pistol") then
+                    return true
+                end
             end
         end
     end
     return false
 end
 
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        if espEnabled then
-            enablePlayerESP()
-        end
-        if espMurdererEnabled and checkIfMurderer(player) then
-            enableMurdererESP()
-        end
-        if espSheriffEnabled and checkIfSheriff(player) then
-            enableSheriffESP()
-        end
-    end)
-end)
-
+-- Auto Farm Functions
 local function SetupAutoFarm()
     local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
     local RoundStart = ReplicatedStorage.Remotes.Gameplay.RoundStart
@@ -778,10 +814,11 @@ local function SetupAntiAFK()
     end)
 end
 
+-- Auto loops
 task.spawn(function()
     while true do
         if autoGrabGunEnabled then
-            autoGrabGun()
+            AutoGrabGun()
         end
         task.wait(0.5)
     end
@@ -797,5 +834,14 @@ task.spawn(function()
     end
 end)
 
+-- Character respawn handler
+LocalPlayer.CharacterAdded:Connect(function()
+    if shotMurdererEnabled then
+        task.wait(2)
+        CreateShotMurdererButton()
+    end
+end)
+
+-- Initialize
 SetupAutoFarm()
 SetupAntiAFK()
