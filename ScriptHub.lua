@@ -8,6 +8,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Переменные
 local autoFarmEnabled = false
 local antiAFKEnabled = true
 local autoResetEnabled = false
@@ -24,6 +25,7 @@ local espSheriffEnabled = false
 
 local menuOpen = true
 
+-- Создание интерфейса
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XHub"
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -127,6 +129,7 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = TitleLabel
 
+-- Функции создания элементов
 local function CreateTab(name, yPosition)
     local tab = Instance.new("TextButton")
     tab.Name = name .. "Tab"
@@ -219,6 +222,7 @@ local function CreateToggle(name, defaultValue, yPosition, parentFrame)
             }):Play()
         end
         
+        -- Обработка переключателей
         if name == "Auto Farm" then
             autoFarmEnabled = newValue
         elseif name == "Anti-AFK" then
@@ -228,32 +232,32 @@ local function CreateToggle(name, defaultValue, yPosition, parentFrame)
         elseif name == "Shot Murderer" then
             shotMurdererEnabled = newValue
             if newValue then
-                CreateShotMurdererButton()
+                createShotMurdererButton()
             else
-                RemoveShotMurdererButton()
+                removeShotMurdererButton()
             end
         elseif name == "Auto Grab Gun" then
             autoGrabGunEnabled = newValue
         elseif name == "ESP All" then
             espEnabled = newValue
             if newValue then
-                EnablePlayerESP()
+                enablePlayerESP()
             else
-                DisablePlayerESP()
+                disablePlayerESP()
             end
         elseif name == "ESP Murderer" then
             espMurdererEnabled = newValue
             if newValue then
-                EnableMurdererESP()
+                enableMurdererESP()
             else
-                DisableMurdererESP()
+                disableMurdererESP()
             end
         elseif name == "ESP Sheriff" then
             espSheriffEnabled = newValue
             if newValue then
-                EnableSheriffESP()
+                enableSheriffESP()
             else
-                DisableSheriffESP()
+                disableSheriffESP()
             end
         end
     end)
@@ -302,22 +306,18 @@ local function CreateDisplay(name, value, yPosition, parentFrame)
     return DisplayFrame, DisplayValue
 end
 
+-- Создание контента для вкладок
 local currentY = 50
 local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY, ContentFrame)
 currentY = currentY + 35
-
 local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY, ContentFrame)
 currentY = currentY + 35
-
 local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY, ContentFrame)
 currentY = currentY + 35
-
 local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY, ContentFrame)
 currentY = currentY + 30
-
 local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY, ContentFrame)
 currentY = currentY + 30
-
 local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY, ContentFrame)
 currentY = currentY + 30
 
@@ -351,6 +351,7 @@ end)
 
 ResetButton.Parent = ContentFrame
 
+-- ESP Content
 local ESPContent = Instance.new("Frame")
 ESPContent.Name = "ESPContent"
 ESPContent.Size = UDim2.new(1, 0, 1, 0)
@@ -361,13 +362,12 @@ ESPContent.Visible = false
 local espCurrentY = 50
 local ESPAllToggle, ESPAllState = CreateToggle("ESP All", false, espCurrentY, ESPContent)
 espCurrentY = espCurrentY + 35
-
 local ESPMurdererToggle, ESPMurdererState = CreateToggle("ESP Murderer", false, espCurrentY, ESPContent)
 espCurrentY = espCurrentY + 35
-
 local ESPSheriffToggle, ESPSheriffState = CreateToggle("ESP Sheriff", false, espCurrentY, ESPContent)
 espCurrentY = espCurrentY + 35
 
+-- Aimbot Content
 local AimbotContent = Instance.new("Frame")
 AimbotContent.Name = "AimbotContent"
 AimbotContent.Size = UDim2.new(1, 0, 1, 0)
@@ -378,10 +378,10 @@ AimbotContent.Visible = false
 local aimbotCurrentY = 50
 local ShotMurdererToggle, ShotMurdererState = CreateToggle("Shot Murderer", false, aimbotCurrentY, AimbotContent)
 aimbotCurrentY = aimbotCurrentY + 35
-
 local AutoGrabGunToggle, AutoGrabGunState = CreateToggle("Auto Grab Gun", false, aimbotCurrentY, AimbotContent)
 aimbotCurrentY = aimbotCurrentY + 35
 
+-- Функции переключения вкладок
 local function SwitchTab(selectedTab)
     ESPTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
     AimbotTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -410,6 +410,7 @@ ESPTab.MouseButton1Click:Connect(function() SwitchTab(ESPTab) end)
 AimbotTab.MouseButton1Click:Connect(function() SwitchTab(AimbotTab) end)
 AutofarmTab.MouseButton1Click:Connect(function() SwitchTab(AutofarmTab) end)
 
+-- Функции управления меню
 local function ToggleMenu()
     menuOpen = not menuOpen
     if menuOpen then
@@ -440,6 +441,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
+-- Изменение размера
 local resizing = false
 ResizeButton.MouseButton1Down:Connect(function()
     resizing = true
@@ -459,6 +461,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+-- Сборка интерфейса
 TitleLabel.Parent = TabsFrame
 ESPTab.Parent = TabsFrame
 AimbotTab.Parent = TabsFrame
@@ -475,7 +478,7 @@ ScreenGui.Parent = PlayerGui
 
 local shotMurdererButton = nil
 
-local function CreateShotMurdererButton()
+local function createShotMurdererButton()
     if shotMurdererButton then
         shotMurdererButton:Destroy()
     end
@@ -498,36 +501,36 @@ local function CreateShotMurdererButton()
     corner.Parent = shotMurdererButton
     
     shotMurdererButton.MouseButton1Click:Connect(function()
-        ShootMurderer()
+        shootMurderer()
     end)
     
     shotMurdererButton.Parent = ScreenGui
 end
 
-local function RemoveShotMurdererButton()
+local function removeShotMurdererButton()
     if shotMurdererButton then
         shotMurdererButton:Destroy()
         shotMurdererButton = nil
     end
 end
 
-local function ShootMurderer()
-    local murderer = FindMurderer()
+local function shootMurderer()
+    local murderer = findMurderer()
     if murderer and murderer.Character then
         local humanoid = murderer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
             humanoid.Health = 0
-            print("Shot murderer: " .. murderer.Name)
+            print("[XHub] Shot murderer: " .. murderer.Name)
         end
     else
-        print("No murderer found")
+        print("[XHub] No murderer found")
     end
 end
 
-local function FindMurderer()
+local function findMurderer()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            if CheckIfMurderer(player) then
+            if checkIfMurderer(player) then
                 return player
             end
         end
@@ -536,7 +539,7 @@ local function FindMurderer()
 end
 
 -- Auto Grab Gun Functions
-local function AutoGrabGun()
+local function autoGrabGun()
     local character = LocalPlayer.Character
     if not character then return end
     
@@ -547,6 +550,7 @@ local function AutoGrabGun()
                 local clickDetector = obj:FindFirstChildOfClass("ClickDetector")
                 if clickDetector then
                     fireclickdetector(clickDetector)
+                    print("[XHub] Auto grabbed gun")
                 end
             end
         end
@@ -557,8 +561,9 @@ end
 local highlights = {}
 local espConnections = {}
 
-local function EnablePlayerESP()
-    DisableAllESP()
+local function enablePlayerESP()
+    disableAllESP()
+    print("[XHub] ESP All enabled")
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
@@ -572,9 +577,10 @@ local function EnablePlayerESP()
                     highlight.OutlineColor = Color3.fromRGB(0, 200, 0)
                     highlight.FillTransparency = 0.3
                     highlight.OutlineTransparency = 0
-                    highlight.Parent = ScreenGui
+                    highlight.Parent = workspace
                     
                     highlights[player] = highlight
+                    print("[XHub] ESP added for: " .. player.Name)
                 end
             end
             
@@ -590,13 +596,14 @@ local function EnablePlayerESP()
     end
 end
 
-local function EnableMurdererESP()
-    DisableAllESP()
+local function enableMurdererESP()
+    disableAllESP()
+    print("[XHub] ESP Murderer enabled")
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local function setupMurdererESP(character)
-                if character and CheckIfMurderer(player) and not highlights[player] then
+                if character and checkIfMurderer(player) and not highlights[player] then
                     local highlight = Instance.new("Highlight")
                     highlight.Name = player.Name .. "_MurdererESP"
                     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -605,9 +612,10 @@ local function EnableMurdererESP()
                     highlight.OutlineColor = Color3.fromRGB(200, 0, 0)
                     highlight.FillTransparency = 0.3
                     highlight.OutlineTransparency = 0
-                    highlight.Parent = ScreenGui
+                    highlight.Parent = workspace
                     
                     highlights[player] = highlight
+                    print("[XHub] Murderer ESP added for: " .. player.Name)
                 end
             end
             
@@ -623,13 +631,14 @@ local function EnableMurdererESP()
     end
 end
 
-local function EnableSheriffESP()
-    DisableAllESP()
+local function enableSheriffESP()
+    disableAllESP()
+    print("[XHub] ESP Sheriff enabled")
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             local function setupSheriffESP(character)
-                if character and CheckIfSheriff(player) and not highlights[player] then
+                if character and checkIfSheriff(player) and not highlights[player] then
                     local highlight = Instance.new("Highlight")
                     highlight.Name = player.Name .. "_SheriffESP"
                     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -638,9 +647,10 @@ local function EnableSheriffESP()
                     highlight.OutlineColor = Color3.fromRGB(0, 0, 200)
                     highlight.FillTransparency = 0.3
                     highlight.OutlineTransparency = 0
-                    highlight.Parent = ScreenGui
+                    highlight.Parent = workspace
                     
                     highlights[player] = highlight
+                    print("[XHub] Sheriff ESP added for: " .. player.Name)
                 end
             end
             
@@ -656,7 +666,7 @@ local function EnableSheriffESP()
     end
 end
 
-local function DisablePlayerESP()
+local function disablePlayerESP()
     for player, highlight in pairs(highlights) do
         if highlight then
             highlight:Destroy()
@@ -668,22 +678,23 @@ local function DisablePlayerESP()
         connection:Disconnect()
     end
     espConnections = {}
+    print("[XHub] ESP disabled")
 end
 
-local function DisableMurdererESP()
-    DisablePlayerESP()
+local function disableMurdererESP()
+    disablePlayerESP()
 end
 
-local function DisableSheriffESP()
-    DisablePlayerESP()
+local function disableSheriffESP()
+    disablePlayerESP()
 end
 
-local function DisableAllESP()
-    DisablePlayerESP()
+local function disableAllESP()
+    disablePlayerESP()
 end
 
 -- Role Detection Functions
-local function CheckIfMurderer(player)
+local function checkIfMurderer(player)
     if player.Character then
         for _, tool in ipairs(player.Character:GetChildren()) do
             if tool:IsA("Tool") then
@@ -697,7 +708,7 @@ local function CheckIfMurderer(player)
     return false
 end
 
-local function CheckIfSheriff(player)
+local function checkIfSheriff(player)
     if player.Character then
         for _, tool in ipairs(player.Character:GetChildren()) do
             if tool:IsA("Tool") then
@@ -712,7 +723,7 @@ local function CheckIfSheriff(player)
 end
 
 -- Auto Farm Functions
-local function SetupAutoFarm()
+local function setupAutoFarm()
     local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
     local RoundStart = ReplicatedStorage.Remotes.Gameplay.RoundStart
     local RoundEnd = ReplicatedStorage.Remotes.Gameplay.RoundEndFade
@@ -805,7 +816,7 @@ local function SetupAutoFarm()
     end)
 end
 
-local function SetupAntiAFK()
+local function setupAntiAFK()
     LocalPlayer.Idled:Connect(function()
         if antiAFKEnabled then
             VirtualUser:CaptureController()
@@ -818,7 +829,7 @@ end
 task.spawn(function()
     while true do
         if autoGrabGunEnabled then
-            AutoGrabGun()
+            autoGrabGun()
         end
         task.wait(0.5)
     end
@@ -838,10 +849,27 @@ end)
 LocalPlayer.CharacterAdded:Connect(function()
     if shotMurdererEnabled then
         task.wait(2)
-        CreateShotMurdererButton()
+        createShotMurdererButton()
     end
 end)
 
+-- Player added handler
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if espEnabled then
+            task.wait(1)
+            enablePlayerESP()
+        elseif espMurdererEnabled then
+            task.wait(1)
+            enableMurdererESP()
+        elseif espSheriffEnabled then
+            task.wait(1)
+            enableSheriffESP()
+        end
+    end)
+end)
+
 -- Initialize
-SetupAutoFarm()
-SetupAntiAFK()
+setupAutoFarm()
+setupAntiAFK()
+print("[XHub] Loaded successfully!")
