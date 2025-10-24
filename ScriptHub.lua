@@ -32,6 +32,7 @@ local shotMurdererButton = nil
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XHub"
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = PlayerGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -157,7 +158,7 @@ local AutofarmTab = CreateTab("AUTOFARM", 130)
 AutofarmTab.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 AutofarmTab.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local function CreateToggle(name, defaultValue, yPosition)
+local function CreateToggle(name, defaultValue, yPosition, parentFrame)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Name = name .. "Toggle"
     ToggleFrame.Size = UDim2.new(1, -20, 0, 30)
@@ -256,17 +257,17 @@ local function CreateToggle(name, defaultValue, yPosition)
                 end
             end
         end
-    })
+    end)
     
     ToggleLabel.Parent = ToggleFrame
     ToggleButton.Parent = ToggleFrame
     ToggleIndicator.Parent = ToggleButton
-    ToggleFrame.Parent = ContentFrame
+    ToggleFrame.Parent = parentFrame
     
     return ToggleFrame, defaultValue
 end
 
-local function CreateDisplay(name, value, yPosition)
+local function CreateDisplay(name, value, yPosition, parentFrame)
     local DisplayFrame = Instance.new("Frame")
     DisplayFrame.Name = name .. "Display"
     DisplayFrame.Size = UDim2.new(1, -20, 0, 25)
@@ -297,15 +298,19 @@ local function CreateDisplay(name, value, yPosition)
     
     DisplayLabel.Parent = DisplayFrame
     DisplayValue.Parent = DisplayFrame
-    DisplayFrame.Parent = ContentFrame
+    DisplayFrame.Parent = parentFrame
     
     return DisplayFrame, DisplayValue
 end
 
 local function getMurderer()
     for _, player in ipairs(Players:GetPlayers()) do
-        if player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
-            return player
+        if player.Character then
+            local backpack = player:FindFirstChild("Backpack")
+            local character = player.Character
+            if backpack and (backpack:FindFirstChild("Knife") or character:FindFirstChild("Knife")) then
+                return player
+            end
         end
     end
     return nil
@@ -313,40 +318,42 @@ end
 
 local function getSheriff()
     for _, player in ipairs(Players:GetPlayers()) do
-        if player.Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun") then
-            return player
+        if player.Character then
+            local backpack = player:FindFirstChild("Backpack")
+            local character = player.Character
+            if backpack and (backpack:FindFirstChild("Gun") or character:FindFirstChild("Gun")) then
+                return player
+            end
         end
     end
     return nil
 end
 
 local function reloadESP()
-    for _, i in ipairs(workspace:GetChildren()) do
-        if i.Name == "PlayerHighlight" and not espEnabled then
-            i:Destroy()
-        end
-
-        if i.Name == "MurdererHighlight" and not murdererEspEnabled then
-            i:Destroy()
-        end
-
-        if i.Name == "SheriffHighlight" and not sheriffEspEnabled then
-            i:Destroy()
+    for _, highlight in pairs(workspace:GetChildren()) do
+        if highlight:IsA("Highlight") then
+            if highlight.Name == "PlayerHighlight" and not espEnabled then
+                highlight:Destroy()
+            elseif highlight.Name == "MurdererHighlight" and not murdererEspEnabled then
+                highlight:Destroy()
+            elseif highlight.Name == "SheriffHighlight" and not sheriffEspEnabled then
+                highlight:Destroy()
+            end
         end
     end
 
     if espEnabled then
-        local listplayers = game.Players:GetChildren()
-        for _, player in ipairs(listplayers) do
-            if player ~= game.Players.LocalPlayer and player.Character ~= nil then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
                 local character = player.Character
-                if not character:FindFirstChild("PlayerHighlight") then
-                    local a = Instance.new("Highlight", workspace)
-                    esps["PlayerHighlight"] = a
-                    a.Name = "PlayerHighlight"
-                    a.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                    a.Adornee = character
-                    a.FillColor = Color3.fromRGB(0,255,0)
+                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                if humanoidRootPart and not character:FindFirstChild("PlayerHighlight") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "PlayerHighlight"
+                    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                    highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+                    highlight.Adornee = character
+                    highlight.Parent = character
                 end
             end
         end
@@ -355,54 +362,59 @@ local function reloadESP()
     if murdererEspEnabled then
         local murderer = getMurderer()
         if murderer and murderer.Character and not murderer.Character:FindFirstChild("MurdererHighlight") then
-            local hili = Instance.new("Highlight", workspace)
-            esps["MurdererHighlight"] = hili
-            hili.Name = "MurdererHighlight"
-            hili.OutlineTransparency = 1
-            hili.Adornee = murderer.Character
-            hili.FillColor = Color3.fromRGB(255,0,0)
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "MurdererHighlight"
+            highlight.FillColor = Color3.fromRGB(255, 0, 0)
+            highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+            highlight.Adornee = murderer.Character
+            highlight.Parent = murderer.Character
         end
     end
 
     if sheriffEspEnabled then
         local sheriff = getSheriff()
         if sheriff and sheriff.Character and not sheriff.Character:FindFirstChild("SheriffHighlight") then
-            local hili = Instance.new("Highlight", workspace)
-            esps["SheriffHighlight"] = hili
-            hili.Name = "SheriffHighlight"
-            hili.OutlineTransparency = 1
-            hili.Adornee = sheriff.Character
-            hili.FillColor = Color3.fromRGB(0,0,255)
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "SheriffHighlight"
+            highlight.FillColor = Color3.fromRGB(0, 0, 255)
+            highlight.OutlineColor = Color3.fromRGB(0, 0, 255)
+            highlight.Adornee = sheriff.Character
+            highlight.Parent = sheriff.Character
         end
     end
 end
 
-local aimlockrscon
+local aimlockConnection
 local function enableAimlock()
     if aimlockEnabled then return end
-    if aimlockrscon then aimlockrscon:Disconnect() end
     
-    aimlockrscon = RunService.RenderStepped:Connect(function()
-        if not targetPlayer or not targetPlayer.Character then return end
-        if not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    aimlockConnection = RunService.RenderStepped:Connect(function()
+        if not aimlockEnabled then return end
         
-        local targetPos = targetPlayer.Character.HumanoidRootPart.Position
-        local currentPos = workspace.CurrentCamera.CFrame.Position
-        workspace.CurrentCamera.CFrame = CFrame.new(currentPos, targetPos)
+        local murderer = getMurderer()
+        if murderer and murderer.Character then
+            local humanoidRootPart = murderer.Character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local camera = workspace.CurrentCamera
+                camera.CFrame = CFrame.new(camera.CFrame.Position, humanoidRootPart.Position)
+            end
+        end
     end)
     aimlockEnabled = true
 end
 
 local function disableAimlock()
-    if not aimlockEnabled then return end
     aimlockEnabled = false
-    if aimlockrscon then 
-        aimlockrscon:Disconnect() 
+    if aimlockConnection then
+        aimlockConnection:Disconnect()
+        aimlockConnection = nil
     end
 end
 
 local function createShotMurdererButton()
-    if shotMurdererButton then return end
+    if shotMurdererButton then
+        shotMurdererButton:Destroy()
+    end
     
     shotMurdererButton = Instance.new("TextButton")
     shotMurdererButton.Name = "ShotMurdererButton"
@@ -423,19 +435,18 @@ local function createShotMurdererButton()
     corner.Parent = shotMurdererButton
     
     shotMurdererButton.MouseButton1Click:Connect(function()
-        local murderer = getMurderer()
         local sheriff = getSheriff()
+        local murderer = getMurderer()
         
-        if sheriff == LocalPlayer then
+        if sheriff == LocalPlayer and murderer and murderer.Character then
             local gun = LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Character:FindFirstChild("Gun")
-            if gun and murderer and murderer.Character then
-                local murdererRoot = murderer.Character:FindFirstChild("HumanoidRootPart")
-                local char = LocalPlayer.Character
-                local root = char:FindFirstChild("HumanoidRootPart")
-                
-                if murdererRoot and root then
-                    workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, murdererRoot.Position)
-                    gun:FindFirstChild("ShootEvent"):FireServer(murdererRoot.Position)
+            if gun then
+                local shootEvent = gun:FindFirstChild("ShootEvent")
+                if shootEvent then
+                    local murdererRoot = murderer.Character:FindFirstChild("HumanoidRootPart")
+                    if murdererRoot then
+                        shootEvent:FireServer(murdererRoot.Position)
+                    end
                 end
             end
         end
@@ -445,22 +456,22 @@ local function createShotMurdererButton()
 end
 
 local currentY = 50
-local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY)
+local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY, ContentFrame)
 currentY = currentY + 35
 
-local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY)
+local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY, ContentFrame)
 currentY = currentY + 35
 
-local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY)
+local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY, ContentFrame)
 currentY = currentY + 35
 
-local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY)
+local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY, ContentFrame)
 currentY = currentY + 30
 
-local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY)
+local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY, ContentFrame)
 currentY = currentY + 30
 
-local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY)
+local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY, ContentFrame)
 currentY = currentY + 30
 
 local ResetButton = Instance.new("TextButton")
@@ -501,17 +512,13 @@ ESPContent.BackgroundTransparency = 1
 ESPContent.Visible = false
 
 local espCurrentY = 50
-local ESPToggle, ESPState = CreateToggle("ESP", false, espCurrentY)
+local ESPToggle, ESPState = CreateToggle("ESP", false, espCurrentY, ESPContent)
 espCurrentY = espCurrentY + 35
 
-local MurdererESPToggle, MurdererESPState = CreateToggle("Murderer ESP", false, espCurrentY)
+local MurdererESPToggle, MurdererESPState = CreateToggle("Murderer ESP", false, espCurrentY, ESPContent)
 espCurrentY = espCurrentY + 35
 
-local SheriffESPToggle, SheriffESPState = CreateToggle("Sheriff ESP", false, espCurrentY)
-
-ESPToggle.Parent = ESPContent
-MurdererESPToggle.Parent = ESPContent
-SheriffESPToggle.Parent = ESPContent
+local SheriffESPToggle, SheriffESPState = CreateToggle("Sheriff ESP", false, espCurrentY, ESPContent)
 
 local AimbotContent = Instance.new("Frame")
 AimbotContent.Name = "AimbotContent"
@@ -521,13 +528,10 @@ AimbotContent.BackgroundTransparency = 1
 AimbotContent.Visible = false
 
 local aimbotCurrentY = 50
-local AimbotToggle, AimbotState = CreateToggle("Aimlock", false, aimbotCurrentY)
+local AimbotToggle, AimbotState = CreateToggle("Aimlock", false, aimbotCurrentY, AimbotContent)
 aimbotCurrentY = aimbotCurrentY + 35
 
-local AutoShotToggle, AutoShotState = CreateToggle("Auto Shot", false, aimbotCurrentY)
-
-AimbotToggle.Parent = AimbotContent
-AutoShotToggle.Parent = AimbotContent
+local AutoShotToggle, AutoShotState = CreateToggle("Auto Shot", false, aimbotCurrentY, AimbotContent)
 
 local function SwitchTab(selectedTab)
     ESPTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -618,12 +622,15 @@ ResizeButton.Parent = MainFrame
 ToggleButton.Parent = MainFrame
 MainFrame.Parent = ScreenGui
 MiniToggleButton.Parent = ScreenGui
-ScreenGui.Parent = PlayerGui
 
 local function SetupAutoFarm()
-    local CoinCollected = ReplicatedStorage.Remotes.Gameplay.CoinCollected
-    local RoundStart = ReplicatedStorage.Remotes.Gameplay.RoundStart
-    local RoundEnd = ReplicatedStorage.Remotes.Gameplay.RoundEndFade
+    local success, coinRemote = pcall(function()
+        return ReplicatedStorage.Remotes.Gameplay.CoinCollected
+    end)
+    
+    if not success then
+        return
+    end
 
     local farming = false
     local bag_full = false
@@ -638,7 +645,7 @@ local function SetupAutoFarm()
         return getCharacter():WaitForChild("HumanoidRootPart") 
     end
 
-    CoinCollected.OnClientEvent:Connect(function(_, current, max)
+    coinRemote.OnClientEvent:Connect(function(_, current, max)
         candyCount = current
         CandyValue.Text = tostring(candyCount)
         
@@ -655,21 +662,14 @@ local function SetupAutoFarm()
                 tween.Completed:Wait()
             end
             task.wait(0.5)
-            LocalPlayer.Character.Humanoid.Health = 0
+            if LocalPlayer.Character then
+                LocalPlayer.Character.Humanoid.Health = 0
+            end
             LocalPlayer.CharacterAdded:Wait()
             task.wait(1.5)
             resetting = false
             bag_full = false
         end
-    end)
-
-    RoundStart.OnClientEvent:Connect(function()
-        farming = true
-        start_position = getHRP().CFrame
-    end)
-
-    RoundEnd.OnClientEvent:Connect(function()
-        farming = false
     end)
 
     local function get_nearest_coin()
