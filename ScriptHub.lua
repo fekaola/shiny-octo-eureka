@@ -339,7 +339,7 @@ local function CreateToggle(name, defaultValue, yPosition, parent)
             antiAFKEnabled = currentValue
         elseif name == "Auto Reset" then
             autoResetEnabled = currentValue
-        elseif name == "ESP Enabled" then
+        elseif name == "ESP" then
             ToggleESP(currentValue)
         end
     end)
@@ -395,7 +395,7 @@ ESPContent.Position = UDim2.new(0, 0, 0, 0)
 ESPContent.BackgroundTransparency = 1
 ESPContent.Visible = false
 
-local ESPToggle, ESPState = CreateToggle("ESP Enabled", false, 50, ESPContent)
+local ESPToggle, ESPState = CreateToggle("ESP", false, 35, ESPContent)
 
 local AimbotContent = Instance.new("Frame")
 AimbotContent.Name = "AimbotContent"
