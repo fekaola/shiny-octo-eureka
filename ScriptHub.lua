@@ -390,17 +390,27 @@ end
 
 local ESPContent = Instance.new("Frame")
 ESPContent.Name = "ESPContent"
-ESPContent.Size = UDim2.new(1, 0, 1, 0)
-ESPContent.Position = UDim2.new(0, 0, 0, 0)
-ESPContent.BackgroundTransparency = 1
+ESPContent.Size = UDim2.new(1, -100, 1, 0)
+ESPContent.Position = UDim2.new(0, 100, 0, 0)
+ESPContent.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ESPContent.BorderSizePixel = 0
 ESPContent.Visible = false
+
+local ESPContentCorner = Instance.new("UICorner")
+ESPContentCorner.CornerRadius = UDim.new(0, 8)
+ESPContentCorner.Parent = ESPContent
 
 local AimbotContent = Instance.new("Frame")
 AimbotContent.Name = "AimbotContent"
-AimbotContent.Size = UDim2.new(1, 0, 1, 0)
-AimbotContent.Position = UDim2.new(0, 0, 0, 0)
-AimbotContent.BackgroundTransparency = 1
+AimbotContent.Size = UDim2.new(1, -100, 1, 0)
+AimbotContent.Position = UDim2.new(0, 100, 0, 0)
+AimbotContent.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+AimbotContent.BorderSizePixel = 0
 AimbotContent.Visible = false
+
+local AimbotContentCorner = Instance.new("UICorner")
+AimbotContentCorner.CornerRadius = UDim.new(0, 8)
+AimbotContentCorner.Parent = AimbotContent
 
 local AimbotLabel = Instance.new("TextLabel")
 AimbotLabel.Name = "AimbotLabel"
@@ -522,7 +532,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.RightControl then
         ToggleMenu()
     end
-end)
+end
 
 local resizing = false
 ResizeButton.MouseButton1Down:Connect(function()
@@ -541,7 +551,7 @@ UserInputService.InputChanged:Connect(function(input)
         local newSize = UDim2.new(0, math.max(350, mousePos.X - MainFrame.AbsolutePosition.X), 0, math.max(250, mousePos.Y - MainFrame.AbsolutePosition.Y))
         MainFrame.Size = newSize
     end
-end)
+end
 
 TitleLabel.Parent = TabsFrame
 ESPTab.Parent = TabsFrame
