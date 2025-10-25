@@ -15,8 +15,127 @@ local tweenSpeed = 25
 local candyCount = 0
 local resetCount = 0
 local startTime = os.time()
-
 local menuOpen = true
+
+local roles = {}
+local highlights = {}
+local rolePlayers = {
+    Murder = nil,
+    Sheriff = nil,
+    Hero = nil
+}
+local espEnabled = false
+
+function CreateHighlight(player)
+    if player == LocalPlayer then return end
+    
+    if player.Character and not highlights[player] then
+        local highlight = Instance.new("Highlight")
+        highlight.Parent = player.Character
+        highlight.Adornee = player.Character
+        highlights[player] = highlight
+        
+        player.CharacterAdded:Connect(function(character)
+            if highlights[player] then
+                highlights[player]:Destroy()
+                highlights[player] = nil
+            end
+            wait(1)
+            if espEnabled then
+                local newHighlight = Instance.new("Highlight")
+                newHighlight.Parent = character
+                newHighlight.Adornee = character
+                highlights[player] = newHighlight
+                UpdateHighlights()
+            end
+        end)
+        
+        player.CharacterRemoving:Connect(function()
+            if highlights[player] then
+                highlights[player]:Destroy()
+                highlights[player] = nil
+            end
+        end)
+    end
+end
+
+function UpdateHighlights()
+    if not espEnabled then return end
+    
+    for playerName, data in pairs(roles) do
+        local player = Players:FindFirstChild(playerName)
+        if player then
+            if data.Role == "Murderer" then
+                rolePlayers.Murder = player
+            elseif data.Role == "Sheriff" then
+                rolePlayers.Sheriff = player
+            elseif data.Role == "Hero" then
+                rolePlayers.Hero = player
+            end
+        end
+    end
+    
+    for player, highlight in pairs(highlights) do
+        if player and player.Character and highlight then
+            if player == rolePlayers.Murder and IsAlive(player) then
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineColor = Color3.fromRGB(150, 0, 0)
+            elseif player == rolePlayers.Sheriff and IsAlive(player) then
+                highlight.FillColor = Color3.fromRGB(0, 0, 255)
+                highlight.OutlineColor = Color3.fromRGB(0, 0, 150)
+            elseif player == rolePlayers.Hero and IsAlive(player) and not IsAlive(rolePlayers.Sheriff) then
+                highlight.FillColor = Color3.fromRGB(255, 255, 0)
+                highlight.OutlineColor = Color3.fromRGB(150, 150, 0)
+            else
+                highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                highlight.OutlineColor = Color3.fromRGB(0, 150, 0)
+            end
+        end
+    end
+end
+
+function IsAlive(player)
+    if not player then return false end
+    for playerName, data in pairs(roles) do
+        if player.Name == playerName then
+            return not data.Killed and not data.Dead
+        end
+    end
+    return false
+end
+
+function ToggleESP(enabled)
+    espEnabled = enabled
+    if not enabled then
+        for player, highlight in pairs(highlights) do
+            if highlight then
+                highlight:Destroy()
+            end
+        end
+        highlights = {}
+    else
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                CreateHighlight(player)
+            end
+        end
+    end
+end
+
+function InitializeESP()
+    Players.PlayerAdded:Connect(function(player)
+        if espEnabled then
+            CreateHighlight(player)
+        end
+    end)
+    
+    Players.PlayerRemoving:Connect(function(player)
+        if highlights[player] then
+            highlights[player]:Destroy()
+            highlights[player] = nil
+        end
+    end)
+end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XHub"
@@ -146,7 +265,7 @@ local AutofarmTab = CreateTab("AUTOFARM", 130)
 AutofarmTab.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 AutofarmTab.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local function CreateToggle(name, defaultValue, yPosition)
+local function CreateToggle(name, defaultValue, yPosition, parent)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Name = name .. "Toggle"
     ToggleFrame.Size = UDim2.new(1, -20, 0, 30)
@@ -190,13 +309,14 @@ local function CreateToggle(name, defaultValue, yPosition)
     IndicatorCorner.CornerRadius = UDim.new(0.5, 0)
     IndicatorCorner.Parent = ToggleIndicator
     
+    local currentValue = defaultValue
+    
     ToggleButton.MouseButton1Click:Connect(function()
-        local newValue = not defaultValue
-        defaultValue = newValue
+        currentValue = not currentValue
         
         local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         
-        if newValue then
+        if currentValue then
             TweenService:Create(ToggleButton, tweenInfo, {
                 BackgroundColor3 = Color3.fromRGB(0, 160, 0)
             }):Play()
@@ -213,23 +333,25 @@ local function CreateToggle(name, defaultValue, yPosition)
         end
         
         if name == "Auto Farm" then
-            autoFarmEnabled = newValue
+            autoFarmEnabled = currentValue
         elseif name == "Anti-AFK" then
-            antiAFKEnabled = newValue
+            antiAFKEnabled = currentValue
         elseif name == "Auto Reset" then
-            autoResetEnabled = newValue
+            autoResetEnabled = currentValue
+        elseif name == "ESP Enabled" then
+            ToggleESP(currentValue)
         end
     end)
     
     ToggleLabel.Parent = ToggleFrame
     ToggleButton.Parent = ToggleFrame
     ToggleIndicator.Parent = ToggleButton
-    ToggleFrame.Parent = ContentFrame
+    ToggleFrame.Parent = parent
     
-    return ToggleFrame, defaultValue
+    return ToggleFrame, currentValue
 end
 
-local function CreateDisplay(name, value, yPosition)
+local function CreateDisplay(name, value, yPosition, parent)
     local DisplayFrame = Instance.new("Frame")
     DisplayFrame.Name = name .. "Display"
     DisplayFrame.Size = UDim2.new(1, -20, 0, 25)
@@ -260,28 +382,57 @@ local function CreateDisplay(name, value, yPosition)
     
     DisplayLabel.Parent = DisplayFrame
     DisplayValue.Parent = DisplayFrame
-    DisplayFrame.Parent = ContentFrame
+    DisplayFrame.Parent = parent
     
     return DisplayFrame, DisplayValue
 end
 
+local ESPContent = Instance.new("Frame")
+ESPContent.Name = "ESPContent"
+ESPContent.Size = UDim2.new(1, 0, 1, 0)
+ESPContent.Position = UDim2.new(0, 0, 0, 0)
+ESPContent.BackgroundTransparency = 1
+ESPContent.Visible = false
+
+local ESPToggle, ESPState = CreateToggle("ESP Enabled", false, 50, ESPContent)
+
+local AimbotContent = Instance.new("Frame")
+AimbotContent.Name = "AimbotContent"
+AimbotContent.Size = UDim2.new(1, 0, 1, 0)
+AimbotContent.Position = UDim2.new(0, 0, 0, 0)
+AimbotContent.BackgroundTransparency = 1
+AimbotContent.Visible = false
+
+local AimbotLabel = Instance.new("TextLabel")
+AimbotLabel.Name = "AimbotLabel"
+AimbotLabel.Size = UDim2.new(1, 0, 0, 200)
+AimbotLabel.Position = UDim2.new(0, 0, 0.2, 0)
+AimbotLabel.BackgroundTransparency = 1
+AimbotLabel.Text = "Aimbot Features\nComing Soon..."
+AimbotLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+AimbotLabel.TextSize = 14
+AimbotLabel.Font = Enum.Font.Gotham
+AimbotLabel.TextYAlignment = Enum.TextYAlignment.Center
+AimbotLabel.TextXAlignment = Enum.TextXAlignment.Center
+AimbotLabel.Parent = AimbotContent
+
 local currentY = 50
-local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY)
+local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY, ContentFrame)
 currentY = currentY + 35
 
-local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY)
+local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY, ContentFrame)
 currentY = currentY + 35
 
-local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY)
+local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY, ContentFrame)
 currentY = currentY + 35
 
-local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY)
+local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY, ContentFrame)
 currentY = currentY + 30
 
-local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY)
+local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY, ContentFrame)
 currentY = currentY + 30
 
-local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY)
+local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY, ContentFrame)
 currentY = currentY + 30
 
 local ResetButton = Instance.new("TextButton")
@@ -313,46 +464,6 @@ ResetButton.MouseButton1Click:Connect(function()
 end)
 
 ResetButton.Parent = ContentFrame
-
-local ESPContent = Instance.new("Frame")
-ESPContent.Name = "ESPContent"
-ESPContent.Size = UDim2.new(1, 0, 1, 0)
-ESPContent.Position = UDim2.new(0, 0, 0, 0)
-ESPContent.BackgroundTransparency = 1
-ESPContent.Visible = false
-
-local ESPLabel = Instance.new("TextLabel")
-ESPLabel.Name = "ESPLabel"
-ESPLabel.Size = UDim2.new(1, 0, 0, 200)
-ESPLabel.Position = UDim2.new(0, 0, 0.2, 0)
-ESPLabel.BackgroundTransparency = 1
-ESPLabel.Text = "ESP Features\nComing Soon..."
-ESPLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
-ESPLabel.TextSize = 14
-ESPLabel.Font = Enum.Font.Gotham
-ESPLabel.TextYAlignment = Enum.TextYAlignment.Center
-ESPLabel.TextXAlignment = Enum.TextXAlignment.Center
-ESPLabel.Parent = ESPContent
-
-local AimbotContent = Instance.new("Frame")
-AimbotContent.Name = "AimbotContent"
-AimbotContent.Size = UDim2.new(1, 0, 1, 0)
-AimbotContent.Position = UDim2.new(0, 0, 0, 0)
-AimbotContent.BackgroundTransparency = 1
-AimbotContent.Visible = false
-
-local AimbotLabel = Instance.new("TextLabel")
-AimbotLabel.Name = "AimbotLabel"
-AimbotLabel.Size = UDim2.new(1, 0, 0, 200)
-AimbotLabel.Position = UDim2.new(0, 0, 0.2, 0)
-AimbotLabel.BackgroundTransparency = 1
-AimbotLabel.Text = "Aimbot Features\nComing Soon..."
-AimbotLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
-AimbotLabel.TextSize = 14
-AimbotLabel.Font = Enum.Font.Gotham
-AimbotLabel.TextYAlignment = Enum.TextYAlignment.Center
-AimbotLabel.TextXAlignment = Enum.TextXAlignment.Center
-AimbotLabel.Parent = AimbotContent
 
 local function SwitchTab(selectedTab)
     ESPTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -557,5 +668,17 @@ task.spawn(function()
     end
 end)
 
+InitializeESP()
 SetupAutoFarm()
 SetupAntiAFK()
+
+RunService.Heartbeat:Connect(function()
+    local success, result = pcall(function()
+        return ReplicatedStorage:FindFirstChild("GetPlayerData", true):InvokeServer()
+    end)
+    
+    if success and result then
+        roles = result
+        UpdateHighlights()
+    end
+end)
