@@ -4,18 +4,9 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
-local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local Mouse = LocalPlayer:GetMouse()
-
-local autoShootEnabled = false
-local SHOOT_COOLDOWN = 0.5
-local BEAM_DURATION = 0.3
-local lastShotTime = 0
-local currentGun = nil
-local gunConnection = nil
 
 local autoFarmEnabled = false
 local antiAFKEnabled = true
@@ -227,16 +218,6 @@ local function CreateToggle(name, defaultValue, yPosition)
             antiAFKEnabled = newValue
         elseif name == "Auto Reset" then
             autoResetEnabled = newValue
-        elseif name == "Auto Shoot" then
-            autoShootEnabled = newValue
-            if autoShootEnabled then
-                toggleAutoShoot()
-            else
-                if gunConnection then
-                    gunConnection:Disconnect()
-                    gunConnection = nil
-                end
-            end
         end
     end)
     
@@ -360,283 +341,18 @@ AimbotContent.Position = UDim2.new(0, 0, 0, 0)
 AimbotContent.BackgroundTransparency = 1
 AimbotContent.Visible = false
 
-local function isMurderServer()
-    if Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("SpawnPoints") then
-        return true
-    end
-    
-    if ReplicatedStorage:FindFirstChild("Remotes") then
-        local remotes = ReplicatedStorage.Remotes
-        if remotes:FindFirstChild("Shoot") or remotes:FindFirstChild("Murder") then
-            return true
-        end
-    end
-    
-    return false
-end
-
-local function checkAH2()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        local humanoid = LocalPlayer.Character.Humanoid
-        if humanoid.Health <= 0 then
-            return false, "Player is dead"
-        end
-    end
-    
-    if workspace:FindFirstChild("AH2_Zone") then
-        local ah2Zone = workspace.AH2_Zone
-        if LocalPlayer.Character and ah2Zone:IsAncestorOf(LocalPlayer.Character) then
-            return false, "In AH2 restricted zone"
-        end
-    end
-    
-    return true, "AH2 check passed"
-end
-
-local function initializeGun()
-    if not LocalPlayer.Character then return nil end
-    
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    local character = LocalPlayer.Character
-    
-    if backpack then
-        for _, item in pairs(backpack:GetChildren()) do
-            if item:IsA("Tool") and (item.Name:lower():find("gun") or item.Name:lower():find("pistol") or item.Name:lower():find("revolver")) then
-                return item
-            end
-        end
-    end
-    
-    if character then
-        for _, item in pairs(character:GetChildren()) do
-            if item:IsA("Tool") and (item.Name:lower():find("gun") or item.Name:lower():find("pistol") or item.Name:lower():find("revolver")) then
-                return item
-            end
-        end
-    end
-    
-    return nil
-end
-
-local function createBeam(startPos, endPos, duration)
-    local beam = Instance.new("Part")
-    beam.Name = "AutoShootBeam"
-    beam.Anchored = true
-    beam.CanCollide = false
-    beam.Material = Enum.Material.Neon
-    beam.BrickColor = BrickColor.new("Bright red")
-    beam.Size = Vector3.new(0.2, 0.2, (startPos - endPos).Magnitude)
-    beam.CFrame = CFrame.new(startPos, endPos) * CFrame.new(0, 0, -beam.Size.Z / 2)
-    
-    local attachment1 = Instance.new("Attachment")
-    local attachment2 = Instance.new("Attachment")
-    
-    local beamEffect = Instance.new("Beam")
-    beamEffect.FaceCamera = true
-    beamEffect.Color = ColorSequence.new(Color3.new(1, 0, 0))
-    beamEffect.Width0 = 0.3
-    beamEffect.Width1 = 0.3
-    beamEffect.Attachment0 = attachment1
-    beamEffect.Attachment1 = attachment2
-    beamEffect.Parent = beam
-    
-    attachment1.Parent = beam
-    attachment2.Parent = beam
-    
-    beam.Parent = Workspace
-    
-    game:GetService("Debris"):AddItem(beam, duration)
-    
-    return beam
-end
-
-local function invokeServer(method, ...)
-    local success, result = pcall(function()
-        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-        if not remotes then return nil end
-        
-        local remoteEvent = remotes:FindFirstChild(method)
-        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
-            remoteEvent:FireServer(...)
-            return true
-        end
-        
-        local remoteFunction = remotes:FindFirstChild(method)
-        if remoteFunction and remoteFunction:IsA("RemoteFunction") then
-            return remoteFunction:InvokeServer(...)
-        end
-        
-        return nil
-    end)
-    
-    if not success then
-        warn("Failed to invoke server method: " .. method)
-        return nil
-    end
-    
-    return result
-end
-
-local function autoShoot()
-    if not autoShootEnabled then return end
-    
-    local currentTime = tick()
-    if currentTime - lastShotTime < SHOOT_COOLDOWN then return end
-    
-    if not isMurderServer() then
-        warn("Not on murder server")
-        autoShootEnabled = false
-        return
-    end
-    
-    local ah2Status, ah2Message = checkAH2()
-    if not ah2Status then
-        warn("AH2 check failed: " .. ah2Message)
-        return
-    end
-    
-    if not currentGun then
-        currentGun = initializeGun()
-        if not currentGun then
-            warn("No gun found")
-            return
-        end
-    end
-    
-    local target = Mouse.Target
-    if not target then return end
-    
-    local targetModel = target:FindFirstAncestorOfClass("Model")
-    if not targetModel then return end
-    
-    local targetPlayer = Players:GetPlayerFromCharacter(targetModel)
-    if not targetPlayer or targetPlayer == LocalPlayer then return end
-    
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-    
-    local shootStart = humanoidRootPart.Position
-    local shootEnd = target.Hit.Position
-    
-    createBeam(shootStart, shootEnd, BEAM_DURATION)
-    
-    local shootSuccess = invokeServer("Shoot", {
-        origin = shootStart,
-        direction = (shootEnd - shootStart).Unit,
-        target = target
-    })
-    
-    if shootSuccess then
-        lastShotTime = currentTime
-    end
-end
-
-local function toggleAutoShoot()
-    if autoShootEnabled then
-        if not isMurderServer() then
-            warn("Cannot enable auto shoot: Not on murder server")
-            autoShootEnabled = false
-            return
-        end
-        
-        local ah2Status, ah2Message = checkAH2()
-        if not ah2Status then
-            warn("Cannot enable auto shoot: " .. ah2Message)
-            autoShootEnabled = false
-            return
-        end
-        
-        if gunConnection then
-            gunConnection:Disconnect()
-        end
-        
-        gunConnection = RunService.Heartbeat:Connect(autoShoot)
-    else
-        if gunConnection then
-            gunConnection:Disconnect()
-            gunConnection = nil
-        end
-    end
-end
-
-local function onCharacterAdded(character)
-    wait(1)
-    currentGun = initializeGun()
-end
-
-local AimbotCurrentY = 50
-local AutoShootToggle, AutoShootState = CreateToggle("Auto Shoot", false, AimbotCurrentY)
-AimbotCurrentY = AimbotCurrentY + 35
-
-local CooldownDisplay, CooldownValue = CreateDisplay("Shoot Cooldown", SHOOT_COOLDOWN .. "s", AimbotCurrentY)
-AimbotCurrentY = AimbotCurrentY + 30
-
-local StatusDisplay, StatusValue = CreateDisplay("Auto Shoot Status", "Disabled", AimbotCurrentY)
-AimbotCurrentY = AimbotCurrentY + 30
-
-local CooldownSlider = Instance.new("TextButton")
-CooldownSlider.Name = "CooldownSlider"
-CooldownSlider.Size = UDim2.new(1, -20, 0, 30)
-CooldownSlider.Position = UDim2.new(0, 10, 0, AimbotCurrentY)
-CooldownSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-CooldownSlider.BorderSizePixel = 0
-CooldownSlider.Text = "ADJUST COOLDOWN: " .. SHOOT_COOLDOWN .. "s"
-CooldownSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-CooldownSlider.TextSize = 12
-CooldownSlider.Font = Enum.Font.GothamBold
-CooldownSlider.AutoButtonColor = false
-
-local CooldownSliderCorner = Instance.new("UICorner")
-CooldownSliderCorner.CornerRadius = UDim.new(0, 6)
-CooldownSliderCorner.Parent = CooldownSlider
-
-CooldownSlider.MouseButton1Click:Connect(function()
-    SHOOT_COOLDOWN = SHOOT_COOLDOWN == 0.5 and 0.3 or 0.5
-    CooldownSlider.Text = "ADJUST COOLDOWN: " .. SHOOT_COOLDOWN .. "s"
-    CooldownValue.Text = SHOOT_COOLDOWN .. "s"
-    TweenService:Create(CooldownSlider, TweenInfo.new(0.1), {
-        BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    }):Play()
-    wait(0.1)
-    TweenService:Create(CooldownSlider, TweenInfo.new(0.1), {
-        BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    }):Play()
-end)
-
-CooldownSlider.Parent = AimbotContent
-
-task.spawn(function()
-    while true do
-        if autoShootEnabled then
-            StatusValue.Text = "Active"
-            StatusValue.TextColor3 = Color3.fromRGB(0, 255, 0)
-        else
-            StatusValue.Text = "Disabled"
-            StatusValue.TextColor3 = Color3.fromRGB(255, 255, 255)
-        end
-        task.wait(0.5)
-    end
-end)
-
-AutoShootToggle.Parent = AimbotContent
-CooldownDisplay.Parent = AimbotContent
-StatusDisplay.Parent = AimbotContent
-
-LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
-if LocalPlayer.Character then
-    onCharacterAdded(LocalPlayer.Character)
-end
-
-LocalPlayer.CharacterRemoving:Connect(function()
-    if gunConnection then
-        gunConnection:Disconnect()
-        gunConnection = nil
-    end
-    autoShootEnabled = false
-end)
+local AimbotLabel = Instance.new("TextLabel")
+AimbotLabel.Name = "AimbotLabel"
+AimbotLabel.Size = UDim2.new(1, 0, 0, 200)
+AimbotLabel.Position = UDim2.new(0, 0, 0.2, 0)
+AimbotLabel.BackgroundTransparency = 1
+AimbotLabel.Text = "Aimbot Features\nComing Soon..."
+AimbotLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+AimbotLabel.TextSize = 14
+AimbotLabel.Font = Enum.Font.Gotham
+AimbotLabel.TextYAlignment = Enum.TextYAlignment.Center
+AimbotLabel.TextXAlignment = Enum.TextXAlignment.Center
+AimbotLabel.Parent = AimbotContent
 
 local function SwitchTab(selectedTab)
     ESPTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
