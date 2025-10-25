@@ -339,7 +339,7 @@ local function CreateToggle(name, defaultValue, yPosition, parent)
             antiAFKEnabled = currentValue
         elseif name == "Auto Reset" then
             autoResetEnabled = currentValue
-        elseif name == "ESP" then
+        elseif name == "ESP Enabled" then
             ToggleESP(currentValue)
         end
     end)
@@ -394,8 +394,6 @@ ESPContent.Size = UDim2.new(1, 0, 1, 0)
 ESPContent.Position = UDim2.new(0, 0, 0, 0)
 ESPContent.BackgroundTransparency = 1
 ESPContent.Visible = false
-
-local ESPToggle, ESPState = CreateToggle("ESP", false, 35, ESPContent)
 
 local AimbotContent = Instance.new("Frame")
 AimbotContent.Name = "AimbotContent"
@@ -465,6 +463,8 @@ ResetButton.MouseButton1Click:Connect(function()
 end)
 
 ResetButton.Parent = ContentFrame
+
+local ESPToggle, ESPState = CreateToggle("ESP Enabled", false, 50, ESPContent)
 
 local function SwitchTab(selectedTab)
     ESPTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
