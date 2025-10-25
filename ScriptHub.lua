@@ -140,6 +140,7 @@ end
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XHub"
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
