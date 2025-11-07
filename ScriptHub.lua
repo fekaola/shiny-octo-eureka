@@ -15,132 +15,12 @@ local tweenSpeed = 25
 local candyCount = 0
 local resetCount = 0
 local startTime = os.time()
+
 local menuOpen = true
-
-local roles = {}
-local highlights = {}
-local rolePlayers = {
-    Murder = nil,
-    Sheriff = nil,
-    Hero = nil
-}
-local espEnabled = false
-
-function CreateHighlight(player)
-    if player == LocalPlayer then return end
-    
-    if player.Character and not highlights[player] then
-        local highlight = Instance.new("Highlight")
-        highlight.Parent = player.Character
-        highlight.Adornee = player.Character
-        highlights[player] = highlight
-        
-        player.CharacterAdded:Connect(function(character)
-            if highlights[player] then
-                highlights[player]:Destroy()
-                highlights[player] = nil
-            end
-            wait(1)
-            if espEnabled then
-                local newHighlight = Instance.new("Highlight")
-                newHighlight.Parent = character
-                newHighlight.Adornee = character
-                highlights[player] = newHighlight
-                UpdateHighlights()
-            end
-        end)
-        
-        player.CharacterRemoving:Connect(function()
-            if highlights[player] then
-                highlights[player]:Destroy()
-                highlights[player] = nil
-            end
-        end)
-    end
-end
-
-function UpdateHighlights()
-    if not espEnabled then return end
-    
-    for playerName, data in pairs(roles) do
-        local player = Players:FindFirstChild(playerName)
-        if player then
-            if data.Role == "Murderer" then
-                rolePlayers.Murder = player
-            elseif data.Role == "Sheriff" then
-                rolePlayers.Sheriff = player
-            elseif data.Role == "Hero" then
-                rolePlayers.Hero = player
-            end
-        end
-    end
-    
-    for player, highlight in pairs(highlights) do
-        if player and player.Character and highlight then
-            if player == rolePlayers.Murder and IsAlive(player) then
-                highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                highlight.OutlineColor = Color3.fromRGB(150, 0, 0)
-            elseif player == rolePlayers.Sheriff and IsAlive(player) then
-                highlight.FillColor = Color3.fromRGB(0, 0, 255)
-                highlight.OutlineColor = Color3.fromRGB(0, 0, 150)
-            elseif player == rolePlayers.Hero and IsAlive(player) and not IsAlive(rolePlayers.Sheriff) then
-                highlight.FillColor = Color3.fromRGB(255, 255, 0)
-                highlight.OutlineColor = Color3.fromRGB(150, 150, 0)
-            else
-                highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                highlight.OutlineColor = Color3.fromRGB(0, 150, 0)
-            end
-        end
-    end
-end
-
-function IsAlive(player)
-    if not player then return false end
-    for playerName, data in pairs(roles) do
-        if player.Name == playerName then
-            return not data.Killed and not data.Dead
-        end
-    end
-    return false
-end
-
-function ToggleESP(enabled)
-    espEnabled = enabled
-    if not enabled then
-        for player, highlight in pairs(highlights) do
-            if highlight then
-                highlight:Destroy()
-            end
-        end
-        highlights = {}
-    else
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                CreateHighlight(player)
-            end
-        end
-    end
-end
-
-function InitializeESP()
-    Players.PlayerAdded:Connect(function(player)
-        if espEnabled then
-            CreateHighlight(player)
-        end
-    end)
-    
-    Players.PlayerRemoving:Connect(function(player)
-        if highlights[player] then
-            highlights[player]:Destroy()
-            highlights[player] = nil
-        end
-    end)
-end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "XHub"
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -266,7 +146,7 @@ local AutofarmTab = CreateTab("AUTOFARM", 130)
 AutofarmTab.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 AutofarmTab.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local function CreateToggle(name, defaultValue, yPosition, parent)
+local function CreateToggle(name, defaultValue, yPosition)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Name = name .. "Toggle"
     ToggleFrame.Size = UDim2.new(1, -20, 0, 30)
@@ -310,14 +190,13 @@ local function CreateToggle(name, defaultValue, yPosition, parent)
     IndicatorCorner.CornerRadius = UDim.new(0.5, 0)
     IndicatorCorner.Parent = ToggleIndicator
     
-    local currentValue = defaultValue
-    
     ToggleButton.MouseButton1Click:Connect(function()
-        currentValue = not currentValue
+        local newValue = not defaultValue
+        defaultValue = newValue
         
         local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         
-        if currentValue then
+        if newValue then
             TweenService:Create(ToggleButton, tweenInfo, {
                 BackgroundColor3 = Color3.fromRGB(0, 160, 0)
             }):Play()
@@ -334,25 +213,23 @@ local function CreateToggle(name, defaultValue, yPosition, parent)
         end
         
         if name == "Auto Farm" then
-            autoFarmEnabled = currentValue
+            autoFarmEnabled = newValue
         elseif name == "Anti-AFK" then
-            antiAFKEnabled = currentValue
+            antiAFKEnabled = newValue
         elseif name == "Auto Reset" then
-            autoResetEnabled = currentValue
-        elseif name == "ESP Enabled" then
-            ToggleESP(currentValue)
+            autoResetEnabled = newValue
         end
     end)
     
     ToggleLabel.Parent = ToggleFrame
     ToggleButton.Parent = ToggleFrame
     ToggleIndicator.Parent = ToggleButton
-    ToggleFrame.Parent = parent
+    ToggleFrame.Parent = ContentFrame
     
-    return ToggleFrame, currentValue
+    return ToggleFrame, defaultValue
 end
 
-local function CreateDisplay(name, value, yPosition, parent)
+local function CreateDisplay(name, value, yPosition)
     local DisplayFrame = Instance.new("Frame")
     DisplayFrame.Name = name .. "Display"
     DisplayFrame.Size = UDim2.new(1, -20, 0, 25)
@@ -383,65 +260,28 @@ local function CreateDisplay(name, value, yPosition, parent)
     
     DisplayLabel.Parent = DisplayFrame
     DisplayValue.Parent = DisplayFrame
-    DisplayFrame.Parent = parent
+    DisplayFrame.Parent = ContentFrame
     
     return DisplayFrame, DisplayValue
 end
 
-local ESPContent = Instance.new("Frame")
-ESPContent.Name = "ESPContent"
-ESPContent.Size = UDim2.new(1, -100, 1, 0)
-ESPContent.Position = UDim2.new(0, 100, 0, 0)
-ESPContent.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ESPContent.BorderSizePixel = 0
-ESPContent.Visible = false
-
-local ESPContentCorner = Instance.new("UICorner")
-ESPContentCorner.CornerRadius = UDim.new(0, 8)
-ESPContentCorner.Parent = ESPContent
-
-local AimbotContent = Instance.new("Frame")
-AimbotContent.Name = "AimbotContent"
-AimbotContent.Size = UDim2.new(1, -100, 1, 0)
-AimbotContent.Position = UDim2.new(0, 100, 0, 0)
-AimbotContent.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-AimbotContent.BorderSizePixel = 0
-AimbotContent.Visible = false
-
-local AimbotContentCorner = Instance.new("UICorner")
-AimbotContentCorner.CornerRadius = UDim.new(0, 8)
-AimbotContentCorner.Parent = AimbotContent
-
-local AimbotLabel = Instance.new("TextLabel")
-AimbotLabel.Name = "AimbotLabel"
-AimbotLabel.Size = UDim2.new(1, 0, 0, 200)
-AimbotLabel.Position = UDim2.new(0, 0, 0.2, 0)
-AimbotLabel.BackgroundTransparency = 1
-AimbotLabel.Text = "Aimbot Features\nComing Soon..."
-AimbotLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
-AimbotLabel.TextSize = 14
-AimbotLabel.Font = Enum.Font.Gotham
-AimbotLabel.TextYAlignment = Enum.TextYAlignment.Center
-AimbotLabel.TextXAlignment = Enum.TextXAlignment.Center
-AimbotLabel.Parent = AimbotContent
-
 local currentY = 50
-local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY, ContentFrame)
+local AutoFarmToggle, AutoFarmState = CreateToggle("Auto Farm", false, currentY)
 currentY = currentY + 35
 
-local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY, ContentFrame)
+local AntiAFKToggle, AntiAFKState = CreateToggle("Anti-AFK", true, currentY)
 currentY = currentY + 35
 
-local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY, ContentFrame)
+local AutoResetToggle, AutoResetState = CreateToggle("Auto Reset", false, currentY)
 currentY = currentY + 35
 
-local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY, ContentFrame)
+local CandyDisplay, CandyValue = CreateDisplay("Candy Collected", candyCount, currentY)
 currentY = currentY + 30
 
-local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY, ContentFrame)
+local TimeDisplay, TimeValue = CreateDisplay("Time Active", "0s", currentY)
 currentY = currentY + 30
 
-local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY, ContentFrame)
+local ResetDisplay, ResetValue = CreateDisplay("Reset Counter", resetCount, currentY)
 currentY = currentY + 30
 
 local ResetButton = Instance.new("TextButton")
@@ -474,7 +314,45 @@ end)
 
 ResetButton.Parent = ContentFrame
 
-local ESPToggle, ESPState = CreateToggle("ESP Enabled", false, 50, ESPContent)
+local ESPContent = Instance.new("Frame")
+ESPContent.Name = "ESPContent"
+ESPContent.Size = UDim2.new(1, 0, 1, 0)
+ESPContent.Position = UDim2.new(0, 0, 0, 0)
+ESPContent.BackgroundTransparency = 1
+ESPContent.Visible = false
+
+local ESPLabel = Instance.new("TextLabel")
+ESPLabel.Name = "ESPLabel"
+ESPLabel.Size = UDim2.new(1, 0, 0, 200)
+ESPLabel.Position = UDim2.new(0, 0, 0.2, 0)
+ESPLabel.BackgroundTransparency = 1
+ESPLabel.Text = "ESP Features\nComing Soon..."
+ESPLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+ESPLabel.TextSize = 14
+ESPLabel.Font = Enum.Font.Gotham
+ESPLabel.TextYAlignment = Enum.TextYAlignment.Center
+ESPLabel.TextXAlignment = Enum.TextXAlignment.Center
+ESPLabel.Parent = ESPContent
+
+local AimbotContent = Instance.new("Frame")
+AimbotContent.Name = "AimbotContent"
+AimbotContent.Size = UDim2.new(1, 0, 1, 0)
+AimbotContent.Position = UDim2.new(0, 0, 0, 0)
+AimbotContent.BackgroundTransparency = 1
+AimbotContent.Visible = false
+
+local AimbotLabel = Instance.new("TextLabel")
+AimbotLabel.Name = "AimbotLabel"
+AimbotLabel.Size = UDim2.new(1, 0, 0, 200)
+AimbotLabel.Position = UDim2.new(0, 0, 0.2, 0)
+AimbotLabel.BackgroundTransparency = 1
+AimbotLabel.Text = "Aimbot Features\nComing Soon..."
+AimbotLabel.TextColor3 = Color3.fromRGB(150, 150, 170)
+AimbotLabel.TextSize = 14
+AimbotLabel.Font = Enum.Font.Gotham
+AimbotLabel.TextYAlignment = Enum.TextYAlignment.Center
+AimbotLabel.TextXAlignment = Enum.TextXAlignment.Center
+AimbotLabel.Parent = AimbotContent
 
 local function SwitchTab(selectedTab)
     ESPTab.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
@@ -532,7 +410,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.RightControl then
         ToggleMenu()
     end
-end
+end)
 
 local resizing = false
 ResizeButton.MouseButton1Down:Connect(function()
@@ -551,7 +429,7 @@ UserInputService.InputChanged:Connect(function(input)
         local newSize = UDim2.new(0, math.max(350, mousePos.X - MainFrame.AbsolutePosition.X), 0, math.max(250, mousePos.Y - MainFrame.AbsolutePosition.Y))
         MainFrame.Size = newSize
     end
-end
+end)
 
 TitleLabel.Parent = TabsFrame
 ESPTab.Parent = TabsFrame
@@ -679,17 +557,5 @@ task.spawn(function()
     end
 end)
 
-InitializeESP()
 SetupAutoFarm()
 SetupAntiAFK()
-
-RunService.Heartbeat:Connect(function()
-    local success, result = pcall(function()
-        return ReplicatedStorage:FindFirstChild("GetPlayerData", true):InvokeServer()
-    end)
-    
-    if success and result then
-        roles = result
-        UpdateHighlights()
-    end
-end)
